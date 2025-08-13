@@ -1,31 +1,4 @@
-
-# Base de conocimiento para el bot
-# Formato: cada línea es una respuesta o dato relevante
-# Líneas que empiezan con # son comentarios y se ignoran
-
-¿Quién eres?
-Soy un bot de Discord creado por Joaquin para ayudarte con preguntas y comandos.
-
-¿Quién es Joaquin?
 Joaquin es el creador y administrador de este bot.
-
-¿Para qué sirve este bot?
+Joaquin nació el 15 de Julio del 2003
+Soy un bot de Discord creado por Joaquin para ayudarte con preguntas y comandos.
 Este bot sirve para responder preguntas, ejecutar comandos y ayudarte en el servidor de Discord.
-
-Pregunta: ¿Cuál es el estado actual del proyecto?
-Respuesta: El proyecto se encuentra en Desarrollo Activo, trabajando actualmente en el Hito 3.
-
-Pregunta: ¿Cuándo se espera el lanzamiento de la beta?
-Respuesta: El lanzamiento de la beta cerrada está planificado para el 1 de mayo de 2025.
-
-Pregunta: ¿Cómo puedo obtener acceso a la API?
-Respuesta: El acceso a la API se otorgará a los usuarios registrados durante la fase de beta cerrada.
-
-Pregunta: ¿Se puede acceder a los datos directamente?
-Respuesta: No, el acceso a los datos y predicciones se realizará exclusivamente a través de la API REST una vez que esté desarrollada.
-
-Pregunta: ¿Quién es el líder del proyecto?
-Respuesta: La líder del proyecto es la Dra. Elena Ríos.
-
-Pregunta: ¿Qué tecnologías usan en el backend?
-Respuesta: En el backend se utiliza Python 3.11 y el framework FastAPI.

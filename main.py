@@ -71,30 +71,17 @@ async def handle_discord_interactions(request: Request):
             interaction_token = interaction_data.get("token")
             application_id = interaction_data.get("application_id")
             user_id = str(interaction_data.get("member", {}).get("user", {}).get("id", "unknown"))
-            # Extraer roles del usuario
             roles = interaction_data.get("member", {}).get("roles", [])
-            # Lanzar el procesamiento de Gemini en segundo plano
             def send_followup():
                 """
-                Envía una respuesta de seguimiento a un webhook de Discord utilizando el resultado de una función de chat LLM.
-
-                La función realiza lo siguiente:
-                - Obtiene una respuesta de un modelo de lenguaje (chat_llm) usando el prompt, user_id y roles.
-                - Envía la respuesta al webhook de Discord especificado por application_id e interaction_token.
-                - Guarda la interacción en el historial de chat.
-                - Envía un mensaje adicional indicando que la memoria fue actualizada.
-                - Maneja y muestra errores en caso de que ocurra algún problema durante el proceso.
-
-                Nota: Se asume que las variables 'prompt', 'user_id', 'roles', 'application_id' y 'interaction_token' están definidas en el ámbito donde se llama la función.
+                Envía una respuesta de seguimiento a un webhook de Discord utilizando el resultado de la función de chat LLM (LangChain).
                 """
                 from timbero import chat as chat_llm
                 import requests
-                from chat_history import save_interaction
                 respuesta = chat_llm(prompt, user_id=user_id, roles=roles)
                 url = f"https://discord.com/api/v10/webhooks/{application_id}/{interaction_token}"
                 data = {"content": respuesta}
                 try:
-                    save_interaction(user_id, prompt, respuesta, roles)
                     requests.post(url, json=data)
                     # Avisar que la memoria fue actualizada
                     data_mem = {"content": "🧠 La memoria fue actualizada."}

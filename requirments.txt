@@ -1,3 +1,8 @@
+# LangChain y dependencias para RAG semántico
+langchain
+faiss-cpu
+sentence-transformers
+langchain-huggingface
 discord.py
 fastapi
 uvicorn
@@ -11,9 +16,6 @@ langchain_openai
 pathlib
 dotenv
 requests
-langchain
-json
 datetime
-threading
-sentence-transformers
 numpy
+
