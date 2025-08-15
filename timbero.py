@@ -63,7 +63,7 @@ def chat(prompt: str, user_id: str = None, roles=None, history_limit: int = 10) 
     if roles:
         roles_info = f"Roles del usuario: {', '.join([str(r) for r in roles])}\n"
 
-    from simple_rag import retriever
+    from enhanced_rag import get_retriever, set_history, get_enhanced_documents
     from langchain_google_genai import ChatGoogleGenerativeAI
     from langchain.chains.combine_documents import create_stuff_documents_chain
     from langchain.chains import create_retrieval_chain
@@ -74,30 +74,61 @@ def chat(prompt: str, user_id: str = None, roles=None, history_limit: int = 10) 
         return "Error: Falta GOOGLE_API_KEY en el entorno."
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
 
+    # Obtener historial de memoria y construir el prompt completo
+    mem_vars = memory.load_memory_variables({})
+    history = mem_vars.get("history", "")
+    
+    # Mejorar el prompt del sistema para manejar mejor el contexto
     system_prompt = (
-        "Utiliza el contexto proporcionado para responder la pregunta. "
-        "Si no sabes la respuesta, di que no la sabes. "
-        "Contexto: {context}"
+        "Eres un asistente útil que responde preguntas basándose en el contexto proporcionado y el historial de la conversación."
+        "IMPORTANTE: Si la pregunta hace referencia a alguien o algo mencionado anteriormente en la conversación, "
+        "usa esa información del contexto para entender a qué se refiere la pregunta. "
+        "Si la pregunta no hace referencia a alguien o algo mencionado anteriormente en la conversación, "
+        "No te inventes información. "
+        "Si no sabes la respuesta, responde con 'No sé la respuesta a esa pregunta.'"
+        "Contexto de la base de conocimiento: {context}\n"
+        "Historial de la conversación: {history}"
     )
+    
     chat_prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         ("human", "{input}"),
     ])
+    
     question_answer_chain = create_stuff_documents_chain(llm, chat_prompt)
+    
+    # Obtener el retriever mejorado
+    retriever = get_retriever()
     chain = create_retrieval_chain(retriever, question_answer_chain)
+    
     # Asignar memoria si el chain lo permite
     if hasattr(chain, 'memory'):
         chain.memory = memory
 
-    # Obtener historial de memoria y construir el prompt completo
-    mem_vars = memory.load_memory_variables({})
-    history = mem_vars.get("history", "")
+    # Construir el prompt completo incluyendo el historial
     if history:
-        full_prompt = f"{roles_info}{history}\nUSUARIO: {prompt}\nBOT:"
+        full_prompt = f"{roles_info}{history}\nUSUARIO: {prompt}\n"
     else:
-        full_prompt = f"{roles_info}USUARIO: {prompt}\nBOT:"
+        full_prompt = f"{roles_info}USUARIO: {prompt}\n"
 
-    result = chain.invoke({"input": full_prompt})
+    # Crear el contexto con el historial para que el LLM lo considere
+    context_with_history = {
+        "input": full_prompt,
+        "history": history if history else "No hay historial previo."
+    }
+
+    # Usar el retriever mejorado con el historial
+    if history:
+        # Establecer el historial para el contexto
+        set_history(history)
+        # Obtener documentos relevantes considerando el historial
+        relevant_docs = get_enhanced_documents(prompt)
+        # Crear un contexto mejorado con los documentos relevantes
+        if relevant_docs:
+            context_text = "\n".join([doc.page_content for doc in relevant_docs])
+            context_with_history["context"] = context_text
+
+    result = chain.invoke(context_with_history)
     response_text = result.get("answer") or str(result)
 
     memory.chat_memory.add_user_message(prompt)

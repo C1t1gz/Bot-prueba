@@ -1,4 +1,5 @@
 Joaquin es el creador y administrador de este bot.
 Joaquin nació el 15 de Julio del 2003
-Soy un bot de Discord creado por Joaquin para ayudarte con preguntas y comandos.
+a Joaquin le gusta el chocolate
 Este bot sirve para responder preguntas, ejecutar comandos y ayudarte en el servidor de Discord.
+Una torta requiere leche, huevo, harina y dulce de leche.
