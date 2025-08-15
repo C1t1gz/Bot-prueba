@@ -11,6 +11,20 @@ Script principal para ejecutar todas las pruebas de una vez.
 - Maneja errores y advertencias
 - **Recomendado**: Usar este script para ejecutar todas las pruebas
 
+### `diagnose_venv.py`
+Script de diagnóstico para identificar problemas con el entorno virtual.
+- Verifica el estado del entorno virtual
+- Lista dependencias instaladas y faltantes
+- Proporciona recomendaciones específicas
+- **Recomendado**: Usar si hay problemas con las dependencias
+
+### `activate_venv.py`
+Gestor de entorno virtual para ejecutar pruebas.
+- Activa automáticamente el entorno virtual
+- Ejecuta las pruebas con el Python correcto
+- Interfaz interactiva para diferentes opciones
+- **Recomendado**: Usar si tienes problemas con la activación del venv
+
 ### `check_dependencies.py`
 Script para verificar que todas las dependencias estén instaladas correctamente.
 - Lista todas las dependencias necesarias
@@ -27,7 +41,14 @@ Script de prueba simplificado que verifica solo la lógica de mejora de consulta
 Script de prueba principal que verifica el manejo de contexto del bot.
 - Prueba la secuencia: "¿quién es joaquin?" → "¿cuándo nació?" → "¿qué le gusta?"
 - Verifica que el bot mantenga el contexto entre preguntas relacionadas
-- Requiere `GOOGLE_API_KEY` configurada
+- Requiere `GOOGLE_API_KEY` configurada y todas las dependencias instaladas
+
+### `test_context_simple.py`
+Script de prueba simplificado que verifica solo la lógica de contexto.
+- Prueba la misma secuencia que test_context.py pero sin dependencias externas
+- Simula las respuestas del bot para verificar la lógica
+- No requiere API keys ni dependencias pesadas
+- **Recomendado**: Usar si hay problemas con las dependencias
 
 ### `README_MEJORAS.md`
 Documentación detallada de las mejoras implementadas en el sistema RAG.
@@ -37,12 +58,21 @@ Documentación detallada de las mejoras implementadas en el sistema RAG.
 
 ## Cómo Usar
 
-### 🚀 Ejecutar todas las pruebas (Recomendado)
+### 🔧 Si tienes problemas con las dependencias (Recomendado)
+```bash
+# Diagnóstico completo
+python tests/diagnose_venv.py
+
+# O usar el gestor de entorno virtual
+python tests/activate_venv.py
+```
+
+### 🚀 Ejecutar todas las pruebas
 ```bash
 # Desde el directorio principal del proyecto
 python tests/run_tests.py
 
-# O desde la carpeta tests
+# O desde la carpeta tests (con venv activado)
 cd tests
 python run_tests.py
 ```
@@ -62,6 +92,11 @@ python run_tests.py
 3. **Probar el sistema completo:**
    ```bash
    python tests/test_context.py
+   ```
+
+4. **Probar la lógica de contexto (sin dependencias):**
+   ```bash
+   python tests/test_context_simple.py
    ```
 
 ### 📁 Ejecutar desde la carpeta tests
@@ -84,10 +119,13 @@ python test_context.py
 
 ```
 tests/
-├── run_tests.py           # Script principal para ejecutar todas las pruebas
-├── check_dependencies.py  # Verificador de dependencias
-├── test_logic.py         # Prueba de lógica básica
-├── test_context.py       # Prueba del sistema completo
-├── README.md             # Este archivo
-└── README_MEJORAS.md     # Documentación de mejoras
+├── run_tests.py              # Script principal para ejecutar todas las pruebas
+├── diagnose_venv.py          # Diagnóstico del entorno virtual
+├── activate_venv.py          # Gestor de entorno virtual
+├── check_dependencies.py     # Verificador de dependencias
+├── test_logic.py            # Prueba de lógica básica
+├── test_context.py          # Prueba del sistema completo
+├── test_context_simple.py   # Prueba de contexto simplificada
+├── README.md                # Este archivo
+└── README_MEJORAS.md        # Documentación de mejoras
 ```

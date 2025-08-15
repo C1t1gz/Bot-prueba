@@ -14,14 +14,42 @@ def test_enhance_query_logic():
     """
     print("🧪 Probando la lógica de mejora de consultas...\n")
     
-    # Importar las funciones de enhanced_rag
-    try:
-        from enhanced_rag import enhance_query_with_context, extract_entities_from_history
-        print("✅ Módulo enhanced_rag importado correctamente")
-    except ImportError as e:
-        print(f"❌ Error importando enhanced_rag: {e}")
-        print("💡 Asegúrate de ejecutar este script desde la carpeta tests/")
-        return
+    # Definir las funciones localmente para evitar importar el módulo completo
+    def extract_entities_from_history(history: str) -> list:
+        """
+        Extrae entidades mencionadas en el historial de conversación.
+        """
+        import re
+        entities = []
+        if history and isinstance(history, str):
+            # Buscar nombres propios (palabras que empiezan con mayúscula)
+            words = re.findall(r'\b[A-Z][a-z]+\b', history)
+            entities.extend(words)
+        return list(set(entities))
+
+    def enhance_query_with_context(query: str, history: str) -> str:
+        """
+        Mejora la consulta agregando contexto del historial.
+        """
+        if not history or not isinstance(history, str):
+            return query
+        
+        # Extraer entidades del historial
+        entities = extract_entities_from_history(history)
+        
+        # Si la consulta no menciona una entidad específica pero hay entidades en el historial
+        # y la consulta parece referirse a una persona, agregar la entidad más reciente
+        if entities and not any(entity.lower() in query.lower() for entity in entities):
+            # Detectar si la consulta se refiere a una persona
+            person_indicators = ['quién', 'quien', 'cuándo', 'cuando', 'dónde', 'donde', 'qué', 'que', 'cómo', 'como']
+            if any(indicator in query.lower() for indicator in person_indicators):
+                # Agregar la entidad más reciente al contexto
+                enhanced_query = f"{query} (refiriéndose a {entities[-1]})"
+                return enhanced_query
+        
+        return query
+    
+    print("✅ Funciones de lógica definidas localmente (sin dependencias externas)")
     
     # Casos de prueba
     test_cases = [

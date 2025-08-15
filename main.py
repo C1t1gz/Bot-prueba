@@ -1,24 +1,46 @@
+"""
+Servidor FastAPI principal para el bot de Discord
+"""
+
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 import logging
-from timbero import verify_discord_signature, tirar_dados, girar_ruleta, lanzar_moneda, mensaje_ayuda
+import threading
+import requests
+import os
+import time
+from dotenv import load_dotenv
 
+# Importar desde la nueva estructura
+from src.core.chat import chat, tirar_dados, girar_ruleta, lanzar_moneda, mensaje_ayuda
+from src.utils.security import verify_discord_signature
 
+# Cargar variables de entorno
+load_dotenv()
+
+# Configurar logging
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-
-app = FastAPI()
+# Crear aplicación FastAPI
+app = FastAPI(
+    title="PythonBots - Discord Bot API",
+    description="API para el bot de Discord con sistema RAG mejorado",
+    version="1.0.0"
+)
 
 @app.post("/discord-interactions")
 async def handle_discord_interactions(request: Request):
     """
     Endpoint principal para manejar las interacciones de Discord.
-    Parámetros:
+    
+    Args:
         request (Request): Solicitud HTTP recibida desde Discord.
-    Retorna:
+        
+    Returns:
         Response o dict: Respuesta para Discord según el tipo de interacción.
     """
-    # --- VERIFICACIÓN DE FIRMA DE DISCORD ---
+    # Verificación de firma de Discord
     signature = request.headers.get("X-Signature-Ed25519")
     timestamp = request.headers.get("X-Signature-Timestamp")
     body = await request.body()
@@ -29,23 +51,26 @@ async def handle_discord_interactions(request: Request):
     if not verify_discord_signature(signature, timestamp, body):
         return Response(content="Firma de Discord inválida", status_code=401)
 
-
+    # Procesar datos de la interacción
     interaction_data = await request.json()
     interaction_type = interaction_data.get("type")
 
-    logging.info(f"Interacción recibida: Tipo {interaction_type}")
+    logger.info(f"Interacción recibida: Tipo {interaction_type}")
 
-    # --- APRETÓN DE MANOS DE VERIFICACIÓN ---
+    # Apretón de manos de verificación
     if interaction_type == 1:
-        logging.info("Recibido PING de Discord. Enviando PONG de vuelta.")
+        logger.info("Recibido PING de Discord. Enviando PONG de vuelta.")
         return {"type": 1}
 
-    # --- LÓGICA NORMAL DE COMANDOS ---
+    # Lógica normal de comandos
     if interaction_type == 2:
-        logging.info("Recibido comando. Procesando...")
+        logger.info("Recibido comando. Procesando...")
+        
         # Obtener el nombre del comando
         command_data = interaction_data.get("data", {})
         command_name = command_data.get("name", "")
+        
+        # Manejar diferentes comandos
         if command_name == "dados":
             content = tirar_dados()
         elif command_name == "ruleta":
@@ -61,44 +86,90 @@ async def handle_discord_interactions(request: Request):
                     if opt.get("name") == "prompt":
                         prompt = opt.get("value")
                         break
+                        
             if not prompt:
                 return {
                     "type": 4,
                     "data": {"content": "Debes enviar un mensaje para el chat. Ejemplo: /chat prompt:Tu pregunta"}
                 }
-            # Responder rápido con ACK diferido
-            import threading
+                
+            # Responder inmediatamente con ACK diferido para evitar timeout
             interaction_token = interaction_data.get("token")
             application_id = interaction_data.get("application_id")
             user_id = str(interaction_data.get("member", {}).get("user", {}).get("id", "unknown"))
             roles = interaction_data.get("member", {}).get("roles", [])
+            
             def send_followup():
                 """
-                Envía una respuesta de seguimiento a un webhook de Discord utilizando el resultado de la función de chat LLM (LangChain).
+                Envía una respuesta de seguimiento a un webhook de Discord utilizando el resultado de la función de chat LLM.
                 """
-                from timbero import chat as chat_llm
-                import requests
-                respuesta = chat_llm(prompt, user_id=user_id, roles=roles)
-                url = f"https://discord.com/api/v10/webhooks/{application_id}/{interaction_token}"
-                data = {"content": respuesta}
                 try:
-                    requests.post(url, json=data)
-                    # Avisar que la memoria fue actualizada
-                    data_mem = {"content": "🧠 La memoria fue actualizada."}
-                    requests.post(url, json=data_mem)
+                    logger.info(f"Procesando chat para usuario {user_id}: {prompt}")
+                    
+                    # Procesar la respuesta del chat
+                    respuesta = chat(prompt, user_id=user_id, roles=roles)
+                    
+                    # Construir URL del webhook
+                    url = f"https://discord.com/api/v10/webhooks/{application_id}/{interaction_token}"
+                    
+                    # Enviar respuesta principal
+                    data = {"content": respuesta}
+                    response = requests.post(url, json=data, timeout=10)
+                    
+                    if response.status_code == 200:
+                        logger.info("Respuesta enviada exitosamente")
+                    else:
+                        logger.error(f"Error enviando respuesta: {response.status_code} - {response.text}")
+                    
                 except Exception as e:
-                    print(f"Error enviando followup: {e}")
-            threading.Thread(target=send_followup).start()
+                    logger.error(f"Error en send_followup: {e}")
+                    # Intentar enviar mensaje de error
+                    try:
+                        error_url = f"https://discord.com/api/v10/webhooks/{application_id}/{interaction_token}"
+                        error_data = {"content": "❌ Error procesando tu mensaje. Inténtalo de nuevo."}
+                        requests.post(error_url, json=error_data, timeout=5)
+                    except:
+                        logger.error("No se pudo enviar mensaje de error")
+                    
+            # Iniciar procesamiento en segundo plano
+            thread = threading.Thread(target=send_followup)
+            thread.daemon = True  # El thread se cerrará cuando el programa principal termine
+            thread.start()
+            
+            # Responder inmediatamente con ACK diferido
+            logger.info("Enviando ACK diferido para comando chat")
             return {"type": 5}  # DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
 
         elif command_name == "help":
             content = mensaje_ayuda()
         else:
             content = "Comando no reconocido. Usa /help para ver los comandos disponibles."
-        # Responder directamente a Discord con el resultado
+            
+        # Responder directamente a Discord con el resultado (para comandos rápidos)
         return {
             "type": 4,  # CHANNEL_MESSAGE_WITH_SOURCE
             "data": {"content": content}
         }
 
     return Response(content="Tipo de interacción no manejado", status_code=400)
+
+@app.get("/")
+async def root():
+    """Endpoint raíz para verificar que el servidor está funcionando."""
+    return {
+        "message": "PythonBots - Discord Bot API",
+        "status": "running",
+        "version": "1.0.0"
+    }
+
+@app.get("/health")
+async def health_check():
+    """Endpoint de verificación de salud del servidor."""
+    return {
+        "status": "healthy",
+        "timestamp": "2024-01-01T00:00:00Z"
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

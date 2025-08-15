@@ -20,9 +20,9 @@ def test_context_handling():
     print("🧪 Probando el manejo de contexto...\n")
     
     try:
-        from timbero import chat
+        from src.core.chat import chat
     except ImportError as e:
-        print(f"❌ Error importando timbero: {e}")
+        print(f"❌ Error importando chat: {e}")
         print("💡 Asegúrate de ejecutar este script desde la carpeta tests/")
         return
     

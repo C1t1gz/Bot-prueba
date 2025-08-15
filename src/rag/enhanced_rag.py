@@ -8,7 +8,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
 import re
 
-BASE_PATH = Path(__file__).parent / "base.txt"
+# Actualizar la ruta para la nueva estructura
+BASE_PATH = Path(__file__).parent.parent.parent / "data" / "base.txt"
 
 def load_documents():
     """
