@@ -4,10 +4,10 @@ Configuraciones centralizadas del bot
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+import dotenv
 
 # Cargar variables de entorno
-load_dotenv()
+dotenv.load_dotenv()
 
 # Rutas del proyecto
 BASE_DIR = Path(__file__).parent.parent

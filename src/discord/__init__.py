@@ -1,3 +1,0 @@
-"""
-Integración con Discord
-"""
