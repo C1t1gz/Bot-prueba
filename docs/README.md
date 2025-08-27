@@ -2,7 +2,7 @@
 
 ## 📋 Descripción
 
-PythonBots es un bot de Discord inteligente que utiliza un sistema RAG (Retrieval-Augmented Generation) mejorado para responder preguntas de manera contextual y mantener conversaciones coherentes. Soporta múltiples proveedores de LLM (Google Gemini, OpenAI GPT, Ollama) con configuración flexible.
+PythonBots es un bot de Discord inteligente que utiliza un sistema RAG (Retrieval-Augmented Generation) mejorado para responder preguntas de manera contextual y mantener conversaciones coherentes. Soporta múltiples proveedores de LLM (Google Gemini, OpenAI GPT, Ollama) con configuración flexible. Incluye un sistema robusto de ACK diferido para garantizar la entrega confiable de mensajes.
 
 ## 🏗️ Arquitectura del Proyecto
 
@@ -14,21 +14,30 @@ PythonBots/
 │   ├── 📁 rag/               # Sistema RAG
 │   │   └── enhanced_rag.py   # RAG mejorado con contexto
 │   ├── 📁 discord/           # Integración con Discord
-│   │   └── client.py         # Cliente de Discord
+│   │   ├── client.py         # Cliente de Discord
+│   │   └── interaction_handler.py  # Manejador de interacciones mejorado
 │   └── 📁 utils/             # Utilidades
-│       └── security.py       # Verificación de seguridad
+│       ├── security.py       # Verificación de seguridad
+│       ├── logger.py         # Sistema de logging centralizado
+│       └── metrics.py        # Sistema de métricas
 ├── 📁 data/                  # Datos y configuraciones
 │   └── base.txt              # Base de conocimiento
 ├── 📁 config/                # Configuraciones
-│   └── settings.py           # Configuraciones centralizadas
+│   ├── settings.py           # Configuraciones centralizadas
+│   └── discord_settings.py   # Configuraciones específicas de Discord
 ├── 📁 scripts/               # Scripts de utilidad
 │   ├── run_bot.py            # Script de inicio
 │   ├── cleanup.py            # Limpieza de archivos temporales
 │   ├── verify_structure.py   # Verificación de estructura
 │   └── fix_dependencies.py   # Reparación de dependencias
 ├── 📁 docs/                  # Documentación
+│   ├── README.md             # Documentación técnica
+│   ├── LOGGING.md            # Guía del sistema de logging
+│   └── ACK_DEFERRED_IMPROVEMENTS.md  # Mejoras del ACK diferido
 ├── 📁 tests/                 # Pruebas
-├── 📁 legacy/                # Archivos obsoletos
+│   ├── test_ack_deferred.py  # Pruebas del sistema ACK diferido
+│   └── test_response_time.py # Pruebas de tiempo de respuesta
+├── 📁 logs/                  # Archivos de log
 ├── main.py                   # Servidor FastAPI
 ├── requirements.txt          # Dependencias
 └── README.md                 # README principal
@@ -41,6 +50,13 @@ PythonBots/
 - **Heurísticas de Contexto**: Extrae entidades del historial de conversación
 - **Query Enhancement**: Mejora automáticamente las consultas con contexto
 - **Memoria de Conversación**: Mantiene historial por usuario
+
+### ⚡ Sistema de ACK Diferido Robusto
+- **Cola de Procesamiento**: Maneja múltiples peticiones simultáneamente
+- **Workers Paralelos**: Procesamiento eficiente con workers múltiples
+- **Reintentos Automáticos**: Recuperación automática de errores
+- **Métricas en Tiempo Real**: Monitoreo completo del rendimiento
+- **Configuración Flexible**: Parámetros ajustables via variables de entorno
 
 ### 🎮 Comandos de Discord
 - `/chat` - Chat inteligente con RAG
@@ -89,6 +105,13 @@ DISCORD_TOKEN=tu_token_de_discord
 GOOGLE_API_KEY=tu_api_key_de_google      # Para Gemini
 OPENAI_API_KEY=tu_api_key_de_openai      # Para GPT
 # Ollama no requiere API key (se ejecuta localmente)
+
+# Configuraciones del ACK diferido (opcional)
+DISCORD_MAX_WORKERS=5
+DISCORD_REQUEST_TIMEOUT=30
+DISCORD_MAX_RETRIES=3
+DISCORD_QUEUE_MAX_SIZE=100
+DISCORD_METRICS_ENABLED=true
 ```
 
 ### 5. Configurar proveedor LLM
@@ -113,6 +136,25 @@ python scripts/run_bot.py
 | `DISCORD_TOKEN` | Token de tu bot de Discord | `xyz789...` | ✅ |
 | `GOOGLE_API_KEY` | API Key de Google para Gemini | `def456...` | Para Gemini |
 | `OPENAI_API_KEY` | API Key de OpenAI para GPT | `ghi789...` | Para OpenAI |
+
+### Configuraciones del ACK Diferido
+
+```bash
+# Número de workers para procesar peticiones
+DISCORD_MAX_WORKERS=5
+
+# Timeout para peticiones HTTP
+DISCORD_REQUEST_TIMEOUT=30
+
+# Número máximo de reintentos
+DISCORD_MAX_RETRIES=3
+
+# Tamaño máximo de la cola
+DISCORD_QUEUE_MAX_SIZE=100
+
+# Habilitar métricas
+DISCORD_METRICS_ENABLED=true
+```
 
 ### Configuraciones del RAG
 
@@ -168,12 +210,46 @@ MODEL_NAME = "gemini-2.5-flash"  # Depende del proveedor
   MODEL_NAME = "llama2"
   ```
 
+## ⚡ Sistema de ACK Diferido
+
+### Características Principales
+
+- **Cola de Procesamiento Robusta**: Implementada con `queue.Queue` con tamaño máximo configurable
+- **Workers Múltiples**: Sistema de workers paralelos para procesar múltiples peticiones
+- **Gestión de Estado**: Seguimiento del estado de cada petición (PENDING, PROCESSING, COMPLETED, FAILED, RETRYING)
+- **Reintentos Inteligentes**: Reintentos automáticos con delays progresivos (1s, 2s, 5s, 10s)
+- **Rate Limiting**: Respeta automáticamente los límites de Discord
+- **Métricas en Tiempo Real**: Monitoreo completo del rendimiento
+
+### Endpoints de Monitoreo
+
+```bash
+# Estado general del sistema
+curl http://localhost:8000/health
+
+# Métricas detalladas
+curl http://localhost:8000/metrics
+
+# Métricas en formato Prometheus
+curl http://localhost:8000/metrics/prometheus
+```
+
+### Métricas Recolectadas
+
+- `discord_interactions_total`: Total de interacciones recibidas
+- `discord_interactions_success`: Interacciones exitosas
+- `discord_interactions_failed`: Interacciones fallidas
+- `discord_response_time_ms`: Tiempo de respuesta promedio
+- `discord_queue_size`: Tamaño actual de la cola
+- `discord_active_workers`: Número de workers activos
+- `discord_retry_count`: Número de reintentos realizados
+
 ## 🧪 Pruebas
 
 ### Ejecutar todas las pruebas
 ```bash
 cd tests
-python run_tests.py
+python test_ack_deferred.py
 ```
 
 ### Pruebas individuales
@@ -183,6 +259,12 @@ python tests/test_logic.py
 
 # Prueba de contexto completo
 python tests/test_context.py
+
+# Prueba del sistema ACK diferido
+python tests/test_ack_deferred.py
+
+# Prueba de tiempo de respuesta
+python tests/test_response_time.py
 
 # Verificar dependencias
 python tests/check_dependencies.py
@@ -224,12 +306,16 @@ a Joaquin le gusta el chocolate
 
 1. **Recepción de Mensaje**: Discord envía interacción al endpoint `/discord-interactions`
 2. **Verificación**: Se valida la firma de Discord
-3. **Procesamiento**: Se extrae el comando y parámetros
-4. **RAG**: Para comandos `/chat`:
+3. **ACK Inmediato**: Se responde inmediatamente con ACK diferido (type: 5)
+4. **Encolamiento**: La petición se añade a la cola de procesamiento
+5. **Procesamiento**: Un worker toma la petición y la procesa
+6. **RAG**: Para comandos `/chat`:
    - Se extrae contexto del historial
    - Se mejora la query con heurísticas
    - Se busca en la base de conocimiento
-5. **Respuesta**: Se genera respuesta con LLM y se envía a Discord
+7. **Respuesta**: Se genera respuesta con LLM y se envía a Discord via webhook
+8. **Reintentos**: Si falla, se reintenta automáticamente
+9. **Métricas**: Se registran métricas en cada paso
 
 ## 🧠 Sistema RAG Técnico
 
@@ -275,7 +361,29 @@ Usuario → Query → Extracción de Entidades → Query Enhancement → FAISS S
 - Verifica que la API key corresponda al proveedor configurado
 - Asegúrate de que `MODEL_PROVIDER` y `MODEL_NAME` sean correctos
 
+### Error: "Error enviando respuesta a Discord"
+- Este error es normal durante las pruebas con tokens falsos
+- En producción, verifica que los tokens de Discord sean válidos
+
 ## 🔄 Cambios Recientes
+
+### v1.3.0 - Sistema de ACK Diferido Mejorado ⭐
+- ✅ **Sistema de cola robusto** con workers múltiples
+- ✅ **Reintentos automáticos** con delays progresivos
+- ✅ **Métricas en tiempo real** para monitoreo completo
+- ✅ **Configuración centralizada** via variables de entorno
+- ✅ **Endpoints de monitoreo** (/health, /metrics, /metrics/prometheus)
+- ✅ **Manejo de errores robusto** con recuperación automática
+- ✅ **Limpieza automática** de datos antiguos
+- ✅ **Pruebas completas** del sistema mejorado
+- ✅ **Documentación detallada** de las mejoras
+
+### v1.2.0 - Sistema de Logging Completo
+- ✅ Integración completa de Loguru en todo el proyecto
+- ✅ Logs separados por categorías (app, errors, discord, chat)
+- ✅ Rotación automática y compresión de archivos de log
+- ✅ Logs en consola con colores y formato legible
+- ✅ Documentación completa del sistema de logging
 
 ### v1.1.0 - Soporte Multi-LLM
 - ✅ Soporte para Google Gemini, OpenAI GPT y Ollama
@@ -314,3 +422,4 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 - OpenAI por GPT
 - Ollama por modelos locales
 - FAISS por la búsqueda vectorial
+- Loguru por el sistema de logging avanzado

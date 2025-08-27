@@ -4,7 +4,6 @@ Servidor FastAPI principal para el bot de Discord
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-import logging
 import threading
 import requests
 import os
@@ -14,18 +13,26 @@ from dotenv import load_dotenv
 # Importar desde la nueva estructura
 from src.core.chat import chat, tirar_dados, girar_ruleta, lanzar_moneda, mensaje_ayuda
 from src.utils.security import verify_discord_signature
+from src.utils.logger import logger
+from src.discord.interaction_handler import interaction_handler
+from src.utils.metrics import metrics_collector
 
 # Cargar variables de entorno
 load_dotenv()
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Importar configuración de Discord
+from config.discord_settings import DiscordConfig
+
+# Validar configuración al inicio
+if not DiscordConfig.validate_config():
+    logger.error("Configuración de Discord inválida. Verificando configuración...")
+    DiscordConfig.print_config_summary()
+    raise SystemExit("Configuración inválida. Revisa las variables de entorno.")
 
 # Crear aplicación FastAPI
 app = FastAPI(
     title="PythonBots - Discord Bot API",
-    description="API para el bot de Discord con sistema RAG mejorado",
+    description="API para el bot de Discord con sistema RAG mejorado y ACK diferido robusto",
     version="1.0.0"
 )
 
@@ -92,53 +99,19 @@ async def handle_discord_interactions(request: Request):
                     "type": 4,
                     "data": {"content": "Debes enviar un mensaje para el chat. Ejemplo: /chat prompt:Tu pregunta"}
                 }
-                
-            # Responder inmediatamente con ACK diferido para evitar timeout
-            interaction_token = interaction_data.get("token")
-            application_id = interaction_data.get("application_id")
-            user_id = str(interaction_data.get("member", {}).get("user", {}).get("id", "unknown"))
-            roles = interaction_data.get("member", {}).get("roles", [])
             
-            def send_followup():
-                """
-                Envía una respuesta de seguimiento a un webhook de Discord utilizando el resultado de la función de chat LLM.
-                """
-                try:
-                    logger.info(f"Procesando chat para usuario {user_id}: {prompt}")
-                    
-                    # Procesar la respuesta del chat
-                    respuesta = chat(prompt, user_id=user_id, roles=roles)
-                    
-                    # Construir URL del webhook
-                    url = f"https://discord.com/api/v10/webhooks/{application_id}/{interaction_token}"
-                    
-                    # Enviar respuesta principal
-                    data = {"content": respuesta}
-                    response = requests.post(url, json=data, timeout=10)
-                    
-                    if response.status_code == 200:
-                        logger.info("Respuesta enviada exitosamente")
-                    else:
-                        logger.error(f"Error enviando respuesta: {response.status_code} - {response.text}")
-                    
-                except Exception as e:
-                    logger.error(f"Error en send_followup: {e}")
-                    # Intentar enviar mensaje de error
-                    try:
-                        error_url = f"https://discord.com/api/v10/webhooks/{application_id}/{interaction_token}"
-                        error_data = {"content": "❌ Error procesando tu mensaje. Inténtalo de nuevo."}
-                        requests.post(error_url, json=error_data, timeout=5)
-                    except:
-                        logger.error("No se pudo enviar mensaje de error")
-                    
-            # Iniciar procesamiento en segundo plano
-            thread = threading.Thread(target=send_followup)
-            thread.daemon = True  # El thread se cerrará cuando el programa principal termine
-            thread.start()
+            # Usar el nuevo sistema mejorado de ACK diferido
+            success = interaction_handler.submit_interaction(interaction_data, prompt)
             
-            # Responder inmediatamente con ACK diferido
-            logger.info("Enviando ACK diferido para comando chat")
-            return {"type": 5}  # DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+            if success:
+                logger.info("Interacción enviada al sistema mejorado de ACK diferido")
+                return {"type": 5}  # DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+            else:
+                logger.error("Error enviando interacción al sistema de ACK diferido")
+                return {
+                    "type": 4,
+                    "data": {"content": "❌ Error interno del servidor. Por favor, inténtalo de nuevo."}
+                }
 
         elif command_name == "help":
             content = mensaje_ayuda()
@@ -165,10 +138,35 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Endpoint de verificación de salud del servidor."""
+    health_data = metrics_collector.get_system_health()
     return {
-        "status": "healthy",
+        "status": health_data["status"],
+        "uptime": health_data["uptime_formatted"],
+        "success_rate": f"{health_data['success_rate_percent']}%",
+        "avg_response_time_ms": health_data["average_response_time_ms"],
+        "total_interactions": health_data["total_interactions"],
+        "failed_interactions": health_data["failed_interactions"],
+        "queue_size": health_data["current_queue_size"],
         "timestamp": "2024-01-01T00:00:00Z"
     }
+
+@app.get("/metrics")
+async def get_metrics():
+    """Endpoint para obtener métricas del sistema."""
+    return {
+        "system_health": metrics_collector.get_system_health(),
+        "queue_status": {
+            "size": interaction_handler.get_queue_size(),
+            "active_requests": interaction_handler.get_active_requests_count()
+        },
+        "metrics_summary": metrics_collector.get_all_metrics_summary(300)  # Últimos 5 minutos
+    }
+
+@app.get("/metrics/prometheus")
+async def get_metrics_prometheus():
+    """Endpoint para obtener métricas en formato Prometheus."""
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(metrics_collector.export_metrics_prometheus())
 
 if __name__ == "__main__":
     import uvicorn

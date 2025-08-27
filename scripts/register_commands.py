@@ -1,6 +1,7 @@
 import requests
 import os
 from dotenv import load_dotenv
+from src.utils.logger import logger
 
 load_dotenv()
 
@@ -53,10 +54,11 @@ headers = {
 }
 
 for command in commands:
+    logger.info(f"Registrando comando: {command['name']}")
     response = requests.post(url, headers=headers, json=command)
     if response.status_code == 201:
-        print(f"Comando /{command['name']} registrado correctamente.")
+        logger.success(f"Comando /{command['name']} registrado correctamente.")
     elif response.status_code == 200:
-        print(f"Comando /{command['name']} ya existe y fue actualizado.")
+        logger.info(f"Comando /{command['name']} ya existe y fue actualizado.")
     else:
-        print(f"Error registrando /{command['name']}: {response.status_code}\n{response.text}")
+        logger.error(f"Error registrando /{command['name']}: {response.status_code}\n{response.text}")

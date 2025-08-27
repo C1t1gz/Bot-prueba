@@ -26,22 +26,39 @@ def main():
     
     # Lista de dependencias a verificar
     dependencies = [
+        # Dependencias principales
         ("langchain", "langchain"),
         ("langchain_core", "langchain-core"),
         ("langchain_community", "langchain-community"),
         ("langchain_google_genai", "langchain-google-genai"),
         ("langchain_huggingface", "langchain-huggingface"),
+        
+        # Sistema RAG
         ("faiss", "faiss-cpu"),
         ("sentence_transformers", "sentence-transformers"),
+        
+        # Discord y FastAPI
         ("discord", "discord.py"),
         ("fastapi", "fastapi"),
         ("uvicorn", "uvicorn"),
+        
+        # Utilidades
         ("dotenv", "python-dotenv"),
         ("pydantic", "pydantic"),
         ("pydantic_settings", "pydantic-settings"),
         ("nacl", "pynacl"),
         ("requests", "requests"),
         ("numpy", "numpy"),
+        
+        # Sistema de logging
+        ("loguru", "loguru"),
+        
+        # Sistema de métricas y threading (incluidos en Python)
+        ("threading", "threading (built-in)"),
+        ("queue", "queue (built-in)"),
+        ("dataclasses", "dataclasses (built-in)"),
+        ("collections", "collections (built-in)"),
+        ("enum", "enum (built-in)"),
     ]
     
     missing_deps = []
@@ -62,10 +79,16 @@ def main():
         print("pip install -r requirements.txt")
         print("\nO instala manualmente:")
         for dep in missing_deps:
-            print(f"pip install {dep}")
+            if "built-in" not in dep:
+                print(f"pip install {dep}")
     else:
         print("🎉 ¡Todas las dependencias están instaladas correctamente!")
-        print("\n🚀 Tu bot está listo para funcionar con todas las mejoras de LangChain.")
+        print("\n🚀 Tu bot está listo para funcionar con todas las mejoras:")
+        print("   - Sistema RAG mejorado")
+        print("   - Sistema de logging completo")
+        print("   - ACK diferido robusto")
+        print("   - Métricas en tiempo real")
+        print("   - Reintentos automáticos")
 
 if __name__ == "__main__":
     main()
