@@ -4,6 +4,7 @@ Módulo principal de chat con funcionalidades del bot
 
 import os
 import random
+import time
 from pydantic import SecretStr
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -18,8 +19,10 @@ from config.settings import MODEL_PROVIDER, MODEL_NAME
 # Importar desde la nueva estructura
 from src.rag.enhanced_rag import get_retriever, set_history, get_enhanced_documents
 from src.utils.logger import logger
+from src.utils.context_storage import context_storage, QueryContext
+from src.utils.persistent_memory import persistent_memory
 
-# Memoria global por usuario
+# Memoria global por usuario (mantener para compatibilidad)
 USER_MEMORIES = {}
 
 # Cache para LLM y chain (evita recrearlos en cada llamada)
@@ -128,10 +131,35 @@ def mensaje_ayuda():
         "!dados - Tira los dados.\n"
         "!ruleta - Gira la ruleta.\n"
         "!coinflip - Lanza una moneda.\n"
-        "!help - Muestra este mensaje de ayuda."
+        "!help - Muestra este mensaje de ayuda.\n"
+        "!forget - Borra tu memoria de conversación."
     )
 
-def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int = 10) -> str:
+def borrar_memoria_usuario(user_id: str) -> str:
+    """
+    Borra la memoria persistente de un usuario
+    
+    Args:
+        user_id: ID del usuario
+        
+    Returns:
+        str: Mensaje de confirmación
+    """
+    try:
+        success = persistent_memory.clear_user_memory(user_id)
+        if success:
+            logger.info(f"Memoria borrada exitosamente para usuario {user_id}")
+            return "🧹 ¡Memoria borrada! He olvidado todo lo que habíamos conversado. Empezamos de nuevo."
+        else:
+            logger.error(f"Error borrando memoria para usuario {user_id}")
+            return "❌ Error borrando la memoria. Inténtalo de nuevo."
+    except Exception as e:
+        logger.error(f"Error en borrar_memoria_usuario para {user_id}: {e}")
+        return "❌ Error interno borrando la memoria."
+
+def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int = 10, 
+         username: str = "Unknown", interaction_token: str = "", guild_id: str = None, 
+         channel_id: str = None) -> str:
     """
     Función principal de chat que maneja las conversaciones con el bot.
     
@@ -140,6 +168,10 @@ def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int =
         user_id (str): ID del usuario para memoria
         roles (list): Roles del usuario en Discord
         history_limit (int): Límite de historial a mantener
+        username (str): Nombre del usuario
+        interaction_token (str): Token de la interacción de Discord
+        guild_id (str): ID del servidor de Discord
+        channel_id (str): ID del canal de Discord
         
     Returns:
         str: Respuesta del bot
@@ -148,15 +180,15 @@ def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int =
     
     logger.info(f"Iniciando chat para usuario {user_id} con prompt: {prompt[:50]}...")
     
+    # Variables para almacenar contexto
+    start_time = time.time()
+    documents_used = []
+    model_used = MODEL_NAME
+    
     try:
-        # Obtener memoria del usuario
-        memory = USER_MEMORIES.get(user_id)
-        if memory is None:
-            logger.debug(f"Creando nueva memoria para usuario {user_id}")
-            memory = ConversationBufferMemory(return_messages=True)
-            USER_MEMORIES[user_id] = memory
-        else:
-            logger.debug(f"Usando memoria existente para usuario {user_id}")
+        # Obtener memoria persistente del usuario
+        memory = persistent_memory.get_user_memory(user_id)
+        logger.debug(f"Memoria persistente cargada para usuario {user_id}")
 
         # Obtener historial de memoria
         mem_vars = memory.load_memory_variables({})
@@ -175,7 +207,7 @@ def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int =
         if roles:
             roles_info = f"Roles del usuario: {', '.join([str(r) for r in roles])}\n"
             logger.debug(f"Roles del usuario {user_id}: {roles}")
-        
+
         if history:
             full_prompt = f"{roles_info}{history}\nUSUARIO: {prompt}\n"
         else:
@@ -195,6 +227,7 @@ def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int =
             if relevant_docs:
                 context_text = "\n".join([doc.page_content for doc in relevant_docs])
                 context_with_history["context"] = context_text
+                documents_used = [doc.metadata.get('source', 'unknown') for doc in relevant_docs]
                 logger.debug(f"Documentos relevantes encontrados: {len(relevant_docs)}")
             else:
                 logger.debug("No se encontraron documentos relevantes")
@@ -209,13 +242,37 @@ def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int =
         memory.chat_memory.add_user_message(prompt)
         memory.chat_memory.add_ai_message(response_text)
         logger.debug("Memoria actualizada")
+        
+        # Guardar memoria persistente
+        persistent_memory.save_user_memory(user_id, memory)
+        logger.debug("Memoria persistente guardada")
 
-        # Añadir aviso si es necesario
-        aviso = '📚 *Esta respuesta utiliza información de la base de conocimiento.*\n\n'
-        if isinstance(response_text, str) and not response_text.startswith(aviso):
-            final_response = aviso + response_text
-        else:
-            final_response = str(response_text)
+        # Usar la respuesta directamente sin aviso
+        final_response = str(response_text)
+        
+        # Calcular tiempo de procesamiento
+        processing_time = time.time() - start_time
+        
+        # Almacenar contexto de la consulta
+        try:
+            context = QueryContext(
+                user_id=user_id,
+                username=username,
+                prompt=prompt,
+                response=final_response,
+                timestamp=start_time,
+                roles=roles or [],
+                documents_used=documents_used,
+                processing_time=processing_time,
+                model_used=model_used,
+                interaction_token=interaction_token,
+                guild_id=guild_id,
+                channel_id=channel_id
+            )
+            context_storage.store_context(context)
+            logger.debug(f"Contexto almacenado para usuario {user_id}")
+        except Exception as e:
+            logger.error(f"Error almacenando contexto: {e}")
         
         logger.info(f"Chat completado exitosamente para usuario {user_id}")
         return final_response
@@ -224,4 +281,26 @@ def chat(prompt: str, user_id: str = "default", roles=None, history_limit: int =
         # Manejo de errores
         error_msg = f"❌ Error procesando tu mensaje: {str(e)}"
         logger.error(f"Error en chat para usuario {user_id}: {e}", exc_info=True)
+        
+        # Almacenar contexto incluso en caso de error
+        try:
+            processing_time = time.time() - start_time
+            context = QueryContext(
+                user_id=user_id,
+                username=username,
+                prompt=prompt,
+                response=error_msg,
+                timestamp=start_time,
+                roles=roles or [],
+                documents_used=documents_used,
+                processing_time=processing_time,
+                model_used=model_used,
+                interaction_token=interaction_token,
+                guild_id=guild_id,
+                channel_id=channel_id
+            )
+            context_storage.store_context(context)
+        except Exception as storage_error:
+            logger.error(f"Error almacenando contexto de error: {storage_error}")
+        
         return error_msg

@@ -28,9 +28,12 @@ class InteractionRequest:
     interaction_token: str
     application_id: str
     user_id: str
+    username: str
     roles: list
     prompt: str
     timestamp: float
+    guild_id: str = None
+    channel_id: str = None
     retry_count: int = 0
     max_retries: int = 3
     status: InteractionStatus = InteractionStatus.PENDING
@@ -104,7 +107,15 @@ class DiscordInteractionHandler:
             
             # Procesar la respuesta del chat
             chat_start_time = time.time()
-            respuesta = chat(request.prompt, user_id=request.user_id, roles=request.roles)
+            respuesta = chat(
+                request.prompt, 
+                user_id=request.user_id, 
+                roles=request.roles,
+                username=request.username,
+                interaction_token=request.interaction_token,
+                guild_id=request.guild_id,
+                channel_id=request.channel_id
+            )
             processing_time = time.time() - chat_start_time
             
             logger.info(f"Chat procesado en {processing_time:.2f}s para usuario {request.user_id}")
@@ -231,7 +242,10 @@ class DiscordInteractionHandler:
             interaction_token = interaction_data.get("token")
             application_id = interaction_data.get("application_id")
             user_id = str(interaction_data.get("member", {}).get("user", {}).get("id", "unknown"))
+            username = interaction_data.get("member", {}).get("user", {}).get("username", "Unknown")
             roles = interaction_data.get("member", {}).get("roles", [])
+            guild_id = interaction_data.get("guild_id")
+            channel_id = interaction_data.get("channel_id")
             
             if not all([interaction_token, application_id, user_id]):
                 logger.error("Datos de interacción incompletos")
@@ -242,9 +256,12 @@ class DiscordInteractionHandler:
                 interaction_token=interaction_token,
                 application_id=application_id,
                 user_id=user_id,
+                username=username,
                 roles=roles,
                 prompt=prompt,
                 timestamp=time.time(),
+                guild_id=guild_id,
+                channel_id=channel_id,
                 max_retries=self.max_retries
             )
             

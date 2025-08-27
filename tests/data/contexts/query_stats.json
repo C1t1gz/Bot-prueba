@@ -1,0 +1,58 @@
+{
+  "total_queries": 3,
+  "unique_users": 2,
+  "top_users": [
+    {
+      "user_id": "test_user_1",
+      "username": "UsuarioPrueba1",
+      "count": 2
+    },
+    {
+      "user_id": "test_user_2",
+      "username": "UsuarioPrueba2",
+      "count": 1
+    }
+  ],
+  "top_queries": [
+    {
+      "keyword": "¿qué",
+      "count": 1
+    },
+    {
+      "keyword": "python?",
+      "count": 1
+    },
+    {
+      "keyword": "¿cómo",
+      "count": 1
+    },
+    {
+      "keyword": "funciona",
+      "count": 1
+    },
+    {
+      "keyword": "rag?",
+      "count": 1
+    },
+    {
+      "keyword": "¿cuáles",
+      "count": 1
+    },
+    {
+      "keyword": "mejores",
+      "count": 1
+    },
+    {
+      "keyword": "prácticas?",
+      "count": 1
+    }
+  ],
+  "average_processing_time": 1.47,
+  "queries_by_hour": {
+    "7": 3
+  },
+  "queries_by_day": {
+    "Wednesday": 3
+  },
+  "last_updated": "2025-08-27T07:40:22.242394"
+}

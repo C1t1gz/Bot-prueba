@@ -1,0 +1,17 @@
+{
+  "user_id": "test_persistent_user_123",
+  "last_updated": "2025-08-27T07:56:23.572094",
+  "message_count": 2,
+  "messages": [
+    {
+      "type": "human",
+      "content": "¿Cuál es tu nombre?",
+      "timestamp": "2025-08-27T07:56:23.572033"
+    },
+    {
+      "type": "ai",
+      "content": "No tengo un nombre específico. Soy un bot de Discord creado por Joaquín.",
+      "timestamp": "2025-08-27T07:56:23.572079"
+    }
+  ]
+}

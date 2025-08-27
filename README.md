@@ -117,6 +117,7 @@ python scripts/run_bot.py
 | `/dados` | Tirar dados | `/dados` |
 | `/ruleta` | Girar ruleta | `/ruleta` |
 | `/coinflip` | Lanzar moneda | `/coinflip` |
+| `/forget` | Borrar memoria de conversación | `/forget` |
 | `/help` | Mostrar ayuda | `/help` |
 
 ## 🧠 Sistema RAG Mejorado
@@ -125,7 +126,8 @@ python scripts/run_bot.py
 - **Búsqueda Semántica**: Utiliza FAISS para búsqueda vectorial eficiente
 - **Heurísticas de Contexto**: Extrae entidades del historial de conversación
 - **Query Enhancement**: Mejora automáticamente las consultas con contexto
-- **Memoria de Conversación**: Mantiene historial por usuario
+- **Memoria de Conversación Persistente**: Mantiene historial por usuario entre sesiones
+- **Comando de Borrado**: Permite a los usuarios borrar su memoria de conversación
 
 ### Ejemplo de Funcionamiento
 ```
@@ -134,6 +136,12 @@ Bot: "Joaquín es el creador y administrador de este bot."
 
 Usuario: "¿cuándo nació?"
 Bot: "Joaquín nació el 15 de Julio del 2003"
+
+Usuario: "Ahora te llamas Pepe"
+Bot: "Entendido, me llamo Pepe"
+
+Usuario: "¿Cuál es tu nombre?"
+Bot: "Me llamo Pepe" (recuerda el contexto de la conversación)
 ```
 
 ## ⚡ Sistema de ACK Diferido Mejorado
@@ -218,7 +226,10 @@ python scripts/test_logging.py
 python scripts/test_response_time.py
 
 # Registrar comandos de Discord
-python scripts/register_commands.py
+python scripts/register_guild_commands.py         # Para un servidor específico (con logger del proyecto)
+python scripts/register_global_commands.py        # Para todos los servidores (con logger del proyecto)
+python scripts/register_guild_commands_simple.py  # Para un servidor específico (versión simple)
+python scripts/register_global_commands_simple.py # Para todos los servidores (versión simple)
 
 # Limpiar archivos temporales
 python scripts/cleanup.py
@@ -228,6 +239,11 @@ python scripts/verify_structure.py
 
 # Reparar dependencias
 python scripts/fix_dependencies.py
+
+# Gestionar memorias persistentes
+python scripts/manage_memory.py list
+python scripts/manage_memory.py show 123456789
+python scripts/manage_memory.py clear 123456789
 ```
 
 ## 📚 Documentación
@@ -235,8 +251,119 @@ python scripts/fix_dependencies.py
 - 📖 [Documentación Completa](docs/README.md)
 - 📝 [Sistema de Logging](docs/LOGGING.md)
 - ⚡ [Mejoras del ACK Diferido](docs/ACK_DEFERRED_IMPROVEMENTS.md)
+- 📊 [Sistema de Almacenamiento de Contextos](docs/CONTEXT_STORAGE.md)
 - 🔧 [Configuración](config/settings.py)
 - 🧪 [Guía de Pruebas](tests/README.md)
+
+## 📊 Sistema de Almacenamiento de Contextos
+
+### Descripción
+El bot incluye un sistema completo para almacenar y analizar todas las consultas realizadas, permitiendo:
+
+- **Análisis de uso**: Identificar patrones de consulta y usuarios más activos
+- **Métricas de rendimiento**: Tiempos de procesamiento y documentos utilizados
+- **Estadísticas detalladas**: Consultas por hora, día, palabras clave más comunes
+- **Exportación de datos**: Para análisis externos y reportes
+
+### Uso Rápido
+
+```bash
+# Ver estadísticas generales
+python scripts/analyze_contexts.py stats
+
+# Ver contextos de un usuario específico
+python scripts/analyze_contexts.py user 123456789 10
+
+# Exportar todos los contextos
+python scripts/analyze_contexts.py export
+
+# Limpiar contextos antiguos (más de 30 días)
+python scripts/analyze_contexts.py cleanup 30
+```
+
+### Endpoints API
+
+```bash
+# Estadísticas generales
+curl http://localhost:8000/contexts/stats
+
+# Contextos de usuario
+curl http://localhost:8000/contexts/user/123456789?limit=10
+
+# Exportar contextos
+curl -X POST http://localhost:8000/contexts/export
+
+# Limpiar contextos antiguos
+curl -X DELETE http://localhost:8000/contexts/cleanup?days=30
+```
+
+### Documentación Completa
+Ver [docs/CONTEXT_STORAGE.md](docs/CONTEXT_STORAGE.md) para documentación detallada.
+
+## 🧠 Sistema de Memoria Persistente
+
+### Descripción
+El bot ahora incluye un sistema de **memoria persistente por usuario** que mantiene el contexto de conversación entre sesiones:
+
+- **Memoria Persistente**: El contexto se guarda en disco y persiste entre reinicios del servidor
+- **Comando de Borrado**: Los usuarios pueden borrar su memoria con `/forget`
+- **Gestión Administrativa**: Scripts y APIs para gestionar las memorias
+
+### Uso Rápido
+
+```bash
+# Listar todas las memorias
+python scripts/manage_memory.py list
+
+# Ver memoria de un usuario específico
+python scripts/manage_memory.py show 123456789
+
+# Borrar memoria de un usuario
+python scripts/manage_memory.py clear 123456789
+
+# Borrar todas las memorias
+python scripts/manage_memory.py clear-all
+
+# Limpiar memorias antiguas
+python scripts/manage_memory.py cleanup 30
+```
+
+### Endpoints API
+
+```bash
+# Listar todas las memorias
+curl http://localhost:8000/memory/list
+
+# Información de memoria de usuario
+curl http://localhost:8000/memory/user/123456789
+
+# Borrar memoria de usuario
+curl -X DELETE http://localhost:8000/memory/user/123456789
+
+# Borrar todas las memorias
+curl -X DELETE http://localhost:8000/memory/clear-all
+
+# Limpiar memorias antiguas
+curl -X DELETE http://localhost:8000/memory/cleanup?days=30
+```
+
+### Ejemplo de Funcionamiento
+
+```
+Sesión 1:
+Usuario: "Ahora te llamas Pepe"
+Bot: "Entendido, me llamo Pepe"
+
+Sesión 2 (después de cerrar Discord y volver):
+Usuario: "¿Cuál es tu nombre?"
+Bot: "Me llamo Pepe" (recuerda el contexto)
+
+Usuario: "/forget"
+Bot: "🧹 ¡Memoria borrada! He olvidado todo lo que habíamos conversado."
+
+Usuario: "¿Cuál es tu nombre?"
+Bot: "Soy un asistente de IA..." (ya no recuerda)
+```
 
 ## 🛠️ Tecnologías Utilizadas
 
@@ -253,6 +380,27 @@ python scripts/fix_dependencies.py
 - **Threading**: Procesamiento paralelo para ACK diferido
 
 ## 🔄 Cambios Recientes
+
+### v1.5.0 - Sistema de Memoria Persistente 🧠
+- ✅ **Memoria persistente** por usuario que mantiene contexto entre sesiones
+- ✅ **Comando `/forget`** para que los usuarios borren su memoria
+- ✅ **Gestión administrativa** de memorias con scripts y APIs
+- ✅ **Almacenamiento en disco** con formato JSON para persistencia
+- ✅ **Cache en memoria** para acceso rápido
+- ✅ **Limpieza automática** de memorias antiguas
+- ✅ **Thread-safe** para múltiples usuarios simultáneos
+- ✅ **Documentación completa** del sistema
+
+### v1.4.0 - Sistema de Almacenamiento de Contextos 📊
+- ✅ **Almacenamiento automático** de todas las consultas y respuestas
+- ✅ **Análisis de usuarios** más activos y patrones de uso
+- ✅ **Estadísticas detalladas** por hora, día y palabras clave
+- ✅ **Scripts de análisis** para generar reportes
+- ✅ **Endpoints API** para acceso programático a estadísticas
+- ✅ **Exportación de datos** en formato JSON para análisis externos
+- ✅ **Limpieza automática** de contextos antiguos
+- ✅ **Cache de estadísticas** para optimizar rendimiento
+- ✅ **Documentación completa** del sistema
 
 ### v1.3.0 - Sistema de ACK Diferido Mejorado ⭐
 - ✅ **Sistema de cola robusto** con workers múltiples

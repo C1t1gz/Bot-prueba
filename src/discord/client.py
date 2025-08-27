@@ -3,7 +3,7 @@ Cliente de Discord para el bot
 """
 
 import discord
-from src.core.chat import chat, mensaje_ayuda, tirar_dados, girar_ruleta, lanzar_moneda
+from src.core.chat import chat, mensaje_ayuda, tirar_dados, girar_ruleta, lanzar_moneda, borrar_memoria_usuario
 
 class Timbero(discord.Client):
     """
@@ -36,6 +36,10 @@ class Timbero(discord.Client):
             await message.channel.send(girar_ruleta())
         elif message.content.startswith("!coinflip"):
             await message.channel.send(lanzar_moneda())
+        elif message.content.startswith("!forget"):
+            user_id = str(message.author.id)
+            response = borrar_memoria_usuario(user_id)
+            await message.channel.send(response)
         else:
             # Procesar mensaje con el sistema de chat
             try:

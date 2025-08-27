@@ -1,0 +1,58 @@
+[
+  {
+    "user_id": "test_user_1",
+    "username": "UsuarioPrueba1",
+    "prompt": "¿Qué es Python?",
+    "response": "Python es un lenguaje de programación...",
+    "timestamp": 1756291222.2323873,
+    "roles": [
+      "member"
+    ],
+    "documents_used": [
+      "base.txt"
+    ],
+    "processing_time": 1.5,
+    "model_used": "gpt-4o-mini",
+    "interaction_token": "test_token_1",
+    "guild_id": "test_guild_1",
+    "channel_id": "test_channel_1"
+  },
+  {
+    "user_id": "test_user_2",
+    "username": "UsuarioPrueba2",
+    "prompt": "¿Cómo funciona el RAG?",
+    "response": "RAG significa Retrieval-Augmented Generation...",
+    "timestamp": 1756291222.232394,
+    "roles": [
+      "admin",
+      "member"
+    ],
+    "documents_used": [
+      "base.txt",
+      "docs/README.md"
+    ],
+    "processing_time": 2.1,
+    "model_used": "gpt-4o-mini",
+    "interaction_token": "test_token_2",
+    "guild_id": "test_guild_1",
+    "channel_id": "test_channel_1"
+  },
+  {
+    "user_id": "test_user_1",
+    "username": "UsuarioPrueba1",
+    "prompt": "¿Cuáles son las mejores prácticas?",
+    "response": "Las mejores prácticas incluyen...",
+    "timestamp": 1756291222.2323966,
+    "roles": [
+      "member"
+    ],
+    "documents_used": [
+      "docs/README.md"
+    ],
+    "processing_time": 0.8,
+    "model_used": "gpt-4o-mini",
+    "interaction_token": "test_token_3",
+    "guild_id": "test_guild_1",
+    "channel_id": "test_channel_1"
+  }
+]
